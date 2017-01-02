@@ -1,0 +1,20 @@
+# Confidential Data #
+config.py
+config_cred.py
+/upload/*
+
+
+# Project Files #
+.spyproject
+.idea
+__pycache__/
+
+
+# OS generated files #
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

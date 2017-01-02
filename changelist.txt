@@ -1,0 +1,15 @@
+g_item_group_id: g:item_group_id
+g_id: g:id
+g_title: g:title
+g_product_type: g:product_type
+g_brand: g:brand
+g_price: g:price
+g_sale_price: g:sale_price
+g_availability: g:availability
+g_link: g:link
+g_gender: g:gender
+g_image_link: g:image_link
+g_installment: g:installment
+g_months: g:months
+g_amount: g:amount
+g_custom_attribute: g:custom_attribute
