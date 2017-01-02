@@ -1,0 +1,30 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: osx-64
+blas=1.1=openblas
+certifi=2016.9.26=py35_0
+icu=56.1=4
+libgfortran=3.0.0=0
+libiconv=1.14=4
+libxml2=2.9.4=3
+libxslt=1.1.29=2
+lxml=3.7.1=py35_0
+mkl=11.3.3=0
+numpy=1.11.3=py35_blas_openblas_200
+openblas=0.2.19=0
+openssl=1.0.2j=0
+pandas=0.19.2=np111py35_1
+pip=9.0.1=py35_0
+python=3.5.2=3
+python-dateutil=2.6.0=py35_0
+pytz=2016.10=py35_0
+readline=6.2=2
+regex=2016.11.18=py35_0
+requests=2.12.4=py35_0
+setuptools=32.3.0=py35_0
+six=1.10.0=py35_1
+sqlite=3.13.0=0
+tk=8.5.18=0
+wheel=0.29.0=py35_0
+xz=5.2.2=1
+zlib=1.2.8=3
