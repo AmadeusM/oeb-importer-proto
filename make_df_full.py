@@ -10,8 +10,8 @@ of the following objects:
     - Orders
     - Categories
     
-Functions allow to select specific subsets of the data (via offset and nr_items).
-To query the whole data, functions in make_df_full.py are more efficient.
+Functions always return the whole available data. 
+For querying specific subsets, use functions in make_df.py.
     
 @author: amagrabi
 
@@ -19,14 +19,13 @@ To query the whole data, functions in make_df_full.py are more efficient.
 """
 
 import pandas as pd
-import numpy as np
 
 import config
 from api import login, query
 from api_util import get_product_price
 
 
-def products(nr_items, staged='false', offset=0, size_chunks = 250,
+def products(staged='false', size_chunks=250, 
              languages=['en','de'], currencies=['USD','EUR'],
              verbose=True):
     '''Queries the commercetools API to create a DataFrame of products.
@@ -41,20 +40,11 @@ def products(nr_items, staged='false', offset=0, size_chunks = 250,
         
     '''
     
-    if nr_items <= 0:
-        raise Exception('Parameter nr_items has to be larger than 0.')
     if staged not in ['true','false']:
         raise Exception('Parameter staged has to be either true or false.')
     
     auth = login(config.CLIENT_ID, config.CLIENT_SECRET, config.PROJECT_KEY, 
                  config.SCOPE, config.HOST)   
-    
-    # To do: dynamic assignment via dictionaries
-#    fields_mandatory = {'id': "['id']",
-#                        'createdAt': "['createdAt']"}
-#
-#    fields_optional = {'sku': "['masterVariant']['sku']",
-#                       'img': "['masterVariant']['images'][0]['url']"}
     
     cols = ['id','sku','categoryIds','img','createdAt']
     
@@ -67,19 +57,28 @@ def products(nr_items, staged='false', offset=0, size_chunks = 250,
     
     df = pd.DataFrame(index=[], columns=cols)
     
-    limit = nr_items if nr_items <= size_chunks else size_chunks
-    
-    while True:
+    last_id = None
+    proceed = True
+    progress = 0
+
+    while(proceed):
         
-        if verbose:
-            print('Loading products chunk (offset: {}, chunk size = {}, nr = {})'.format(offset, size_chunks, nr_items))
-        
-        endpoint = 'product-projections?limit={}&offset={}&staged={}'.format(limit, offset, staged)
+        if last_id == None:
+            endpoint = 'product-projections?limit={}&sort=id&staged={}'.format(size_chunks, staged)
+        else:
+            endpoint = ('product-projections?limit={}&sort=id&staged={}&where=id%3E%22' + last_id + '%22').format(size_chunks, staged)
+            
         data_json = query(endpoint, config.PROJECT_KEY, auth, config.HOST)
-        
         df_chunk = pd.DataFrame(index=[], columns=cols)
         results = data_json['results']
 
+        proceed = len(results)==size_chunks
+        last_id = results[-1]['id']
+
+        progress += size_chunks
+        if verbose:
+            print('Loading products chunk (imported: {}, chunk size = {})'.format(progress, size_chunks))
+        
         for i, product in enumerate(results):
             
             # Mandatory fields
@@ -118,19 +117,14 @@ def products(nr_items, staged='false', offset=0, size_chunks = 250,
             for cat_json in cats_json:
                 cats_list.append(cat_json['id'])
             df_chunk.loc[i, 'categoryIds'] = cats_list
-                
-                
-        if nr_items <= size_chunks:
-            df = df.append(df_chunk, ignore_index=True)
-            return df
-        else:
-            nr_items -= size_chunks
-            offset += size_chunks
-            limit = nr_items if nr_items <= size_chunks else size_chunks
-            df = df.append(df_chunk, ignore_index=True)
+        
+        # Append chunk to DataFrame     
+        df = df.append(df_chunk, ignore_index=True)
             
+    return df
 
-def customers(nr_items, offset=0, size_chunks = 250, verbose=True):
+
+def customers(size_chunks=250, verbose=True):
     '''Queries the commercetools API to create a DataFrame of customers.
     
     Args:
@@ -142,9 +136,6 @@ def customers(nr_items, offset=0, size_chunks = 250, verbose=True):
         
     '''
     
-    if nr_items <= 0:
-        raise Exception("'nr_items' has to be larger than 0.")
-    
     auth = login(config.CLIENT_ID, config.CLIENT_SECRET, config.PROJECT_KEY, 
                  config.SCOPE, config.HOST)
     
@@ -153,18 +144,27 @@ def customers(nr_items, offset=0, size_chunks = 250, verbose=True):
             'customerGroup_ids', 'customerGroup_names']
     df = pd.DataFrame(index=[], columns=cols)
     
-    limit = nr_items if nr_items <= size_chunks else size_chunks
-    
-    while True:
+    last_id = None
+    proceed = True
+    progress = 0
+
+    while(proceed):
         
-        if verbose:
-            print('Loading customers chunk (offset: {}, chunk size = {}, nr = {})'.format(offset, size_chunks, nr_items))
-        
-        endpoint = "customers?limit=%s&offset=%s"  % (limit, offset)
+        if last_id == None:
+            endpoint = 'customers?limit={}&sort=id'.format(size_chunks)
+        else:
+            endpoint = ('customers?limit={}&sort=id&where=id%3E%22' + last_id + '%22').format(size_chunks)
+            
         data_json = query(endpoint, config.PROJECT_KEY, auth, config.HOST)
-        
         df_chunk = pd.DataFrame(index=[], columns=cols)
         results = data_json['results']
+
+        proceed = len(results)==size_chunks
+        last_id = results[-1]['id']
+
+        progress += size_chunks
+        if verbose:
+            print('Loading customers chunk (imported: {}, chunk size = {})'.format(progress, size_chunks))
 
         for i, customer in enumerate(results):
             
@@ -224,21 +224,13 @@ def customers(nr_items, offset=0, size_chunks = 250, verbose=True):
                 df_chunk.loc[i, 'customerGroup_ids'] = ''
                 df_chunk.loc[i, 'customerGroup_names'] = ''
             
-
-        if nr_items <= size_chunks:
+        # Append chunk to DataFrame     
+        df = df.append(df_chunk, ignore_index=True)
             
-            df = df.append(df_chunk, ignore_index=True)
-            return df
-            
-        else:
-            
-            nr_items -= size_chunks
-            offset += size_chunks
-            limit = nr_items if nr_items <= size_chunks else size_chunks
-            df = df.append(df_chunk, ignore_index=True)
+    return df
 
     
-def orders(nr_items, offset=0, size_chunks = 250, languages=['en','de'], verbose=True):
+def orders(size_chunks=250, languages=['en','de'], verbose=True):
     '''Queries the commercetools API to create a DataFrame of orders.
     
     Args:
@@ -249,9 +241,6 @@ def orders(nr_items, offset=0, size_chunks = 250, languages=['en','de'], verbose
         DataFrame of orders.
         
     '''
-    
-    if nr_items <= 0:
-        raise Exception("'nr_items' has to be larger than 0.")
     
     auth = login(config.CLIENT_ID, config.CLIENT_SECRET, config.PROJECT_KEY, 
                  config.SCOPE, config.HOST)
@@ -266,19 +255,27 @@ def orders(nr_items, offset=0, size_chunks = 250, languages=['en','de'], verbose
     
     df = pd.DataFrame([], columns=cols)
     
-    limit = nr_items if nr_items <= size_chunks else size_chunks
-    
-    while True:
+    last_id = None
+    proceed = True
+    progress = 0
+
+    while(proceed):
         
-        if verbose:
-            print('Loading orders chunk (offset: {}, chunk size = {}, nr = {})'.format(offset, size_chunks, nr_items))
-        
-        endpoint = "orders?limit=%s&offset=%s"  % (limit, offset)
+        if last_id == None:
+            endpoint = 'orders?limit={}&sort=id'.format(size_chunks)
+        else:
+            endpoint = ('orders?limit={}&sort=id&where=id%3E%22' + last_id + '%22').format(size_chunks)
+            
         data_json = query(endpoint, config.PROJECT_KEY, auth, config.HOST)
+        df_chunk = pd.DataFrame(index=[], columns=cols)
         results = data_json['results']
-        nr_results = len(results)
-        
-        df_chunk = pd.DataFrame(np.zeros((nr_results, len(cols))), columns=cols)
+
+        proceed = len(results)==size_chunks
+        last_id = results[-1]['id']
+
+        progress += size_chunks
+        if verbose:
+            print('Loading orders chunk (imported: {}, chunk size = {})'.format(progress, size_chunks))
         
         counter = 0
         
@@ -342,20 +339,13 @@ def orders(nr_items, offset=0, size_chunks = 250, languages=['en','de'], verbose
                 
                 counter += 1
 
-        if nr_items <= size_chunks:
+        # Append chunk to DataFrame     
+        df = df.append(df_chunk, ignore_index=True)
             
-            df = df.append(df_chunk, ignore_index=True)
-            return df
-            
-        else:
-            nr_items -= size_chunks
-            offset += size_chunks
-            limit = nr_items if nr_items <= size_chunks else size_chunks
-            df = df.append(df_chunk, ignore_index=True)
+    return df
             
 
-def categories(nr_items, offset=0, size_chunks = 250, languages=['en','de'],
-               verbose=True):
+def categories(size_chunks=250, languages=['en','de'], verbose=True):
     '''Queries the commercetools API to create a DataFrame of categories.
     
     Args:
@@ -365,9 +355,6 @@ def categories(nr_items, offset=0, size_chunks = 250, languages=['en','de'],
         DataFrame of categories.
         
     '''
-
-    if nr_items <= 0:
-        raise Exception("nr_items has to be larger than 0.")
     
     auth = login(config.CLIENT_ID, config.CLIENT_SECRET, config.PROJECT_KEY, 
                  config.SCOPE, config.HOST)
@@ -379,19 +366,29 @@ def categories(nr_items, offset=0, size_chunks = 250, languages=['en','de'],
     [cols.append(ld_var + '_' + language) for ld_var in ld_vars for language in languages]
     
     df = pd.DataFrame(index=[], columns=cols)
-    limit = nr_items if nr_items <= size_chunks else size_chunks
     
-    while True:
-        
-        if verbose:
-            print('Loading categories chunk (offset: {}, chunk size = {}, nr = {})'.format(offset, size_chunks, nr_items))
-        
-        endpoint = "categories?limit=%s&offset=%s"  % (limit, offset)
-        data_json = query(endpoint, config.PROJECT_KEY, auth, config.HOST)
-        results = data_json['results']
-        
-        df_chunk = pd.DataFrame(index=[], columns=cols)
+    last_id = None
+    proceed = True
+    progress = 0
 
+    while(proceed):
+        
+        if last_id == None:
+            endpoint = 'categories?limit={}&sort=id'.format(size_chunks)
+        else:
+            endpoint = ('categories?limit={}&sort=id&where=id%3E%22' + last_id + '%22').format(size_chunks)
+            
+        data_json = query(endpoint, config.PROJECT_KEY, auth, config.HOST)
+        df_chunk = pd.DataFrame(index=[], columns=cols)
+        results = data_json['results']
+
+        proceed = len(results)==size_chunks
+        last_id = results[-1]['id']
+
+        progress += size_chunks
+        if verbose:
+            print('Loading categories chunk (imported: {}, chunk size = {})'.format(progress, size_chunks))
+        
         for i, category in enumerate(results):
             
             # Mandatory fields
@@ -407,16 +404,8 @@ def categories(nr_items, offset=0, size_chunks = 250, languages=['en','de'],
                     except:
                         df_chunk.loc[i, var] = ''
                 
-
-        if nr_items <= size_chunks:
+        # Append chunk to DataFrame     
+        df = df.append(df_chunk, ignore_index=True)
             
-            df = df.append(df_chunk, ignore_index=True)
-            return df
-            
-        else:
-            
-            nr_items -= size_chunks
-            offset += size_chunks
-            limit = nr_items if nr_items <= size_chunks else size_chunks
-            df = df.append(df_chunk, ignore_index=True)
+    return df
             

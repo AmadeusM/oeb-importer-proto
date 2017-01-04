@@ -15,7 +15,7 @@ from lxml import etree
 
 import config
 import nr
-import make_df
+import make_df_full
 import api_util
 import text
 
@@ -33,13 +33,9 @@ def make_csv():
 
     '''
     
-    # Get numbers of available data
-    nr_orders = nr.nr_orders()
-    nr_products = nr.nr_products(staged='false')
-    
     # Get data via API
-    df_orders = make_df.orders(nr_orders)
-    df_products = make_df.products(nr_products, 'false')
+    df_orders = make_df_full.orders()
+    df_products = make_df_full.products(staged='false')
     
     # Replace anonymous customer id with order id when there are at least 2 products ordered
     ind = df_orders['customerId']=='anonymous'
@@ -105,7 +101,7 @@ def make_xml(website, verbose=1):
     '''
     
     nr_products = nr.products(staged='false')
-    df_products = make_df.products(nr_products, staged='false')
+    df_products = make_df_full.products(nr_products, staged='false')
     
     root = etree.Element('rss')
 

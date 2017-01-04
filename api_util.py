@@ -9,6 +9,7 @@ Helper functions for API access.
 
 import config
 import os
+import math
 
 from api import login, query
 
@@ -167,6 +168,29 @@ def get_category_paths(prod_id, output='str', restrict=True):
             return []
         else:
             print('Output format is undefined.')
-                
+
+    
+def get_product_price(json, currency, country=''):
+    price = math.nan
+    nr_entries = len(json)
+    if nr_entries > 0:
+        if country != '':
+            for i, field in enumerate(json):
+                try:
+                    if field['country'] ==  country:
+                        if field['value']['currencyCode'] == currency:
+                            price = field['value']['centAmount']
+                            break
+                except:
+                    None
+        else:
+            for i, field in enumerate(json):
+                try:
+                    if field['value']['currencyCode'] == currency:
+                        price = field['value']['centAmount']
+                        break
+                except:
+                    None
+    return price
     
     
