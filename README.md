@@ -1,5 +1,5 @@
 # oeb-importer-proto
-Queries the commercetools API, transforms data into pandas DataFrame, and exports data to csv (purchases/orders) and xml (product catalog) files.
+Importer to convert data from the commercetools API to xml (product catalogs) and csv (purchases) files.
 
 ## Environment Setup
 
